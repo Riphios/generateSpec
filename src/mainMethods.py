@@ -25,20 +25,16 @@ class MainMethods():
         #TODO: Implement parser for inserting specifications into the code / all 
         # similar programs from buggy / not buggy batch
 
-        outputfile = cls.util.create_output_file(file, code_response, outputdir)
+        outputfile = cls.util.create_output_file(file, outputdir, content = code_response)
         
         return outputfile
 
 
     #runs the verifier on the generated code, writes the results to a file and returns the filepath
     @classmethod
-    def run_verifier(cls, file, verifier, verifier_timeout = "10"):
+    def run_verifier(cls, file, outputdir, verifier, verifier_timeout):
         print("Running " + verifier + " on file: " + file)
-        if file.endswith('.c') or  file.endswith('.i'):
-            ending = file[-2:]
-            verification_file = file[:-2] + "_" + verifier + ending
-        else:
-            print('Only C files are supported for verification.')
+        verification_file = cls.util.create_output_file(file, outputdir, type = "verification")
         if verifier == 'frama-c':
             frama_c_cmd = ['frama-c', '-wp', file, '-wp-timeout', verifier_timeout, '-wp-prover', 'alt-ergo']
             with open(verification_file, 'w') as f:
