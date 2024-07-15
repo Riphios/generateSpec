@@ -9,13 +9,13 @@ class MainMethods():
 
     #sends the given code to the LLM and saves the generated specifications into a file
     @classmethod
-    def process_file(cls, file, prompt, llm, outputdir):
+    def process_file(cls, file, prompt_choice, llm, outputdir):
         print("Processing file: " + file)
         lines = cls.util.read_file(file)
 
         #TODO: Implement parsing the file if necessary
 
-        api_result = cls.api.handle_prompt(lines, prompt, llm)
+        api_result = cls.api.handle_prompt(lines, prompt_choice, llm)
 
         code_response = cls.util.get_code_response(api_result)
 
@@ -36,7 +36,7 @@ class MainMethods():
         print("Running " + verifier + " on file: " + file)
         verification_file = cls.util.create_output_file(file, outputdir, type = "verification")
         if verifier == 'frama-c':
-            frama_c_cmd = ['frama-c', '-wp', file, '-wp-timeout', verifier_timeout, '-wp-prover', 'alt-ergo']
+            frama_c_cmd = ['frama-c', '-wp', file, '-wp-timeout', str(verifier_timeout), '-wp-prover', 'alt-ergo']
             with open(verification_file, 'w') as f:
                 subprocess.run(frama_c_cmd, stdout=f, stderr=subprocess.STDOUT)
         print("Verification results are written to " + verification_file)
