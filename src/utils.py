@@ -39,18 +39,18 @@ class Utils:
 
     #set default output directory based on input name
     @staticmethod
-    def set_default_outputdir(inputfile, inputdir):
+    def set_default_outputdir(inputfile, inputdir, prompt):
         if inputfile:
             input = os.path.basename(inputfile)
         elif inputdir:
-            input = os.path.basename(inputdir)
+            input = os.path.basename(os.path.dirname(inputdir))
         current_file_path = os.path.abspath(__file__)
         current_dir = os.path.dirname(current_file_path)            # Get the directory containing the current file
         results_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "results"))
         
         # Create the new directory 
         current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        new_dir_name = f"{input}_results_{current_datetime}"
+        new_dir_name = f"{input}_{prompt}_results_{current_datetime}"
         default_output_dir = os.path.join(results_dir, new_dir_name)
         os.makedirs(default_output_dir, exist_ok=True)
         
@@ -78,7 +78,7 @@ class Utils:
             parser.error("Please specify only one of input file or directory")
 
         if args.outputdir is None:
-            args.outputdir = Utils.set_default_outputdir(args.inputfile, args.inputdir)
+            args.outputdir = Utils.set_default_outputdir(args.inputfile, args.inputdir, args.prompt)
 
         inputfile = args.inputfile
         inputdir = args.inputdir
