@@ -19,8 +19,14 @@ class Main:
     elif inputdir and not inputfile:
         files = util.get_files(inputdir)
 
-    for file in files:
-        outputfile = mainMethods.process_file(file, prompt_choice, llm, outputdir)
-        if outputfile:
-            verification_file = mainMethods.run_verifier(outputfile, outputdir, verifier, verifierTimeout)
+    if prompt_choice == "all":
+        prompts = ["base", "simple", "baseNL", "simpleNL"]
+    else:
+        prompts = [prompt_choice]
+
+    for prompt in prompts:
+        for file in files:
+            outputfile = mainMethods.process_file(file, prompt, llm, outputdir)
+            if outputfile:
+                verification_file = mainMethods.run_verifier(outputfile, outputdir, verifier, verifierTimeout)
     

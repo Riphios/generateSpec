@@ -105,12 +105,39 @@ class Utils:
         
     #extracts the c code from the text response (from the llm)
     @staticmethod
-    def get_code_response(api_result):
-        pattern = r"```c(.*?)```"
-        match = re.search(pattern, api_result, re.DOTALL)
-        if match:
-            return match.group(1)
-        return None  
+    def get_specs(api_result):
+        pattern = r'//@.*|/\*@.*?\*/'
+        matches = re.findall(pattern, api_result, re.DOTALL)
+        if matches:
+            return matches
+        else:
+            print("No specifications found in the response")
+            return None  
+        
+    #inserts the generated specifications (without requires) into the code
+    @staticmethod
+    def insert_specs(generated_specs, lines):
+        code_with_specs = []
+        if isinstance(generated_specs, list):
+            generated_specs = '\n'.join(generated_specs)
+        if isinstance(generated_specs, str):
+            generated_specs = generated_specs.split('\n')
+        generated_specs = [spec for spec in generated_specs if 'requires' not in spec]
+
+        for line in lines: 
+            if re.match(r'^\s*\w+\s+\w+\s*\(.*\)\s*{', line):               #only for C code and similar languages!!!
+                for spec in generated_specs:
+                    code_with_specs.append(spec)
+            code_with_specs.append(line)
+        return '\n'.join(code_with_specs)
+    
+    #find the (first) function definition and return it
+    @staticmethod
+    def find_function_def(lines):
+        for line in lines: 
+            if re.match(r'^\s*\w+\s+\w+\s*\(.*\)\s*{', line):               #only for C code and similar languages!!!
+                return line
+        return ""
 
     #write the output to a file
     @staticmethod
