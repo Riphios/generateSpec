@@ -1,4 +1,7 @@
 keys.py
+jsonHandler.py
+loadHumanEval.py
+countdef.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

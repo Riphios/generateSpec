@@ -9,8 +9,8 @@ def parse_arguments():
     parser.add_argument("--inputfile", "-i", help="Path to the input file")
     parser.add_argument("--inputdir", "-d", help="Path to the input directory")
     parser.add_argument("--outputdir", "-o", default="../../results/", help="Path to the output directory")
-    parser.add_argument("--verifier", "-v", default="frama-c", help="Verifier to use")
-    parser.add_argument("--llm", "-l", default="gpt3.5", help="LLM to use")
+    parser.add_argument("--verifier", "-v", help="Verifier to use")
+    parser.add_argument("--llm", "-l", default="gpt4", help="LLM to use")
     parser.add_argument("--llmTimeout", "-lt", type=int, help="Timeout value")
     parser.add_argument("--verifierTimeout", "-vt", default="10", type=int, help="Timeout value")
     parser.add_argument("--prompt", "-p", default="base", help="Prompt to use")
@@ -55,7 +55,27 @@ class Utils:
         os.makedirs(default_output_dir, exist_ok=True)
         
         return default_output_dir
-   
+    
+    #tries check what kind of program should be verified and sets the verifier accordingly
+    @staticmethod
+    def set_default_verifier(inputfile, inputdir):
+        if inputfile:
+            if inputfile.endswith('.c') or inputfile.endswith('.i'):
+                return "frama-c"
+            elif inputfile.endswith('.py'):
+                return "crosshair"
+            else:
+                print('Only C and Python files are supported for verification currently.')
+                return None
+        elif inputdir:
+            files = Utils.get_files(inputdir)
+            for file in files:
+                if file.endswith('.c') or file.endswith('.i'):
+                    return "frama-c"
+                elif file.endswith('.py'):
+                    return "crosshair"
+            print('Only C and Python files are supported for verification currently.')
+            return None
 
 
     #get the input from the command line
@@ -65,8 +85,8 @@ class Utils:
         parser.add_argument("--inputfile", "-i", help="Path to the input file")
         parser.add_argument("--inputdir", "-d", help="Path to the input directory")
         parser.add_argument("--outputdir", "-o", help="Path to the output directory")
-        parser.add_argument("--verifier", "-v", default="frama-c", help="Verifier to use")
-        parser.add_argument("--llm", "-l", default="gpt3.5", help="LLM to use")
+        parser.add_argument("--verifier", "-v", help="Verifier to use")
+        parser.add_argument("--llm", "-l", default="gpt4", help="LLM to use")
         parser.add_argument("--verifierTimeout", "-vt", default="10", type=int, help="Timeout value")
         parser.add_argument("--prompt", "-p", default="base", help="Prompt to use")
 
@@ -79,6 +99,9 @@ class Utils:
 
         if args.outputdir is None:
             args.outputdir = Utils.set_default_outputdir(args.inputfile, args.inputdir, args.prompt)
+
+        if args.verifier is None:
+            args.verifier = Utils.set_default_verifier(args.inputfile, args.inputdir)
 
         inputfile = args.inputfile
         inputdir = args.inputdir
@@ -103,9 +126,9 @@ class Utils:
             print(f"File '{filepath}' not found")
             return None
         
-    #extracts the c code from the text response (from the llm)
+    #extracts the ACSL specification from the text response (from the llm)
     @staticmethod
-    def get_specs(api_result):
+    def get_ACSL_specs(api_result):
         pattern = r'//@.*|/\*@.*?\*/'
         matches = re.findall(pattern, api_result, re.DOTALL)
         if matches:
@@ -113,6 +136,17 @@ class Utils:
         else:
             print("No specifications found in the response")
             return None  
+        
+    #extracts the icontract specification from the text response (from the llm)
+    @staticmethod
+    def get_icontract_specs(api_result):
+        pattern = r'@.*?(?=\ndef)'
+        matches = re.findall(pattern, api_result, re.DOTALL)
+        if matches:
+            return matches
+        else:
+            print("No specifications found in the response")
+            return None
         
     #inserts the generated specifications (without requires) into the code
     @staticmethod
@@ -122,32 +156,50 @@ class Utils:
             generated_specs = '\n'.join(generated_specs)
         if isinstance(generated_specs, str):
             generated_specs = generated_specs.split('\n')
-        generated_specs = [spec for spec in generated_specs if 'requires' not in spec]
+        #generated_specs = [spec for spec in generated_specs if 'requires' not in spec]
 
+        code_with_specs.append("import icontract")
         for line in lines: 
-            if re.match(r'^\s*\w+\s+\w+\s*\(.*\)\s*{', line):               #only for C code and similar languages!!!
+            line_without_spaces = line.lstrip()
+            if line_without_spaces.startswith("def "):              
                 for spec in generated_specs:
                     code_with_specs.append(spec)
             code_with_specs.append(line)
         return '\n'.join(code_with_specs)
     
-    #find the (first) function definition and return it
+    #find the prompt from HumanEval that is the function def and the docstring
     @staticmethod
     def find_function_def(lines):
+        function_def = ''
+        flag = 0
         for line in lines: 
-            if re.match(r'^\s*\w+\s+\w+\s*\(.*\)\s*{', line):               #only for C code and similar languages!!!
-                return line
-        return ""
+            if '"""' in line:
+                flag += 1
+            function_def = function_def + line + '\n'
+            if flag < 2:
+                break
+        return function_def
 
     #write the output to a file
     @staticmethod
-    def create_output_file(filepath, outputdir, content = "", type = "result"):
+    def create_output_file(filepath, outputdir, prompt_choice, content = "", type = "result"):
         filename = os.path.basename(filepath)
         if filename.endswith('.c') or  filename.endswith('.i'):
             ending = filename[-2:]
-            outputfilename = filename[:-2] + "_" + type + ending
+            name = filename[:-2]
+        elif filename.endswith('.py'):
+            ending = ".py"
+            name = filename[:-3]
         else:
-            print('Only C files are supported for verification.')
+            print('Only C and Pathon files are supported for verification currently.')
+            return None
+
+        if type == "verification":
+            ending = ".txt"    
+            prompt_choice = ""
+            
+        outputfilename = name + "_" + prompt_choice + "_" + type + ending
+            
         outputfile = os.path.join(outputdir, outputfilename)
         with open(outputfile, "w") as f:
             f.write(content)
