@@ -53,7 +53,7 @@ class Main:
                     if outputfile:
                         verification_file, exit_code = mainMethods.run_verifier(outputfile, outputdir, verifier, verifierTimeout, prompt)
                         if stoplog == 0 :
-                            if file == log[0]:
+                            if file == log[0][0]:
                                 stoplog = 1
                             else:
                                 log[0].append(file)
