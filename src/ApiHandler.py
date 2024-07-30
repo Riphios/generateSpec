@@ -50,9 +50,12 @@ class ApiHandler():
           'Then disregard, whether it is buggy or not, and just give a brief informal explanation in natural language of what the code is supposed to be doing. ' +\
           'It should contain all necessary information, including all input variables, but no code pieces.'
 
-     NL2spec_prompt = 'In the following, I will provide a natural language description of a code snippet and its function definition without the implementation. ' +\
+     NL2spec_prompt_c = 'In the following, I will provide a natural language description of a code snippet and its function definition without the implementation. ' +\
           'Try to use this description to generate formal specifications in ACSL for the code snippet, that complies with this natural language specification. '
 
+     NL2spec_prompt_py = 'In the following, I will provide a natural language description of a code snippet and its function definition without the implementation. ' +\
+          'Try to use this description to generate formal specifications in icontract annotations (for example "@icontract.require(lambda ...)", "@icontract.ensure(lambda ...) ' + \
+          'for the code snippet, that complies with this natural language specification. '
 
      # Depending on chosen prompt and llm, a request is generated
      # Normalizes llm choice to current model
@@ -87,8 +90,10 @@ class ApiHandler():
                try:
                     if language == 'c':
                          base_prompt = cls.base_prompt_c
+                         NL2spec_prompt = cls.NL2spec_prompt_c
                     elif language == 'python':
                          base_prompt = cls.base_prompt_py
+                         NL2spec_prompt = cls.NL2spec_prompt_py
 
                     if prompt_choice == 'base':
                          prompt = base_prompt + '\n\n' + cls.preciseness_request  + \
@@ -97,10 +102,10 @@ class ApiHandler():
                          prompt = base_prompt + '\n' + cls.simple_prompt_addition + '\n\n' + cls.preciseness_request + \
                               f'\n\n```{language} \n' + '\n'.join(lines) + '\n```'
                     elif prompt_choice == 'baseNL':
-                         prompt = cls.NL2spec_prompt + '\n\n' + cls.preciseness_request + \
+                         prompt = NL2spec_prompt + '\n\n' + cls.preciseness_request + \
                               '\n\n``` \n' + lines + '\n```'
                     elif prompt_choice == 'simpleNL':
-                         prompt = cls.NL2spec_prompt + '\n' + cls.simple_prompt_addition + '\n\n' + cls.preciseness_request + \
+                         prompt = NL2spec_prompt + '\n' + cls.simple_prompt_addition + '\n\n' + cls.preciseness_request + \
                               '\n\n``` \n' + lines + '\n```'
                     response = cls.client.chat.completions.create(
                          model=llm,
@@ -113,7 +118,7 @@ class ApiHandler():
                          temperature=0,
                          max_tokens=cls.return_tokens,
                          timeout=cls.timeout)
-                    print('Prompt sent to API \n' + prompt)
+                    print(prompt_choice + ': Prompt sent to API \n' + prompt)
                     return response
                except openai.APIConnectionError as e:
                     if i < cls.max_retries:

@@ -14,6 +14,7 @@ def parse_arguments():
     parser.add_argument("--llmTimeout", "-lt", type=int, help="Timeout value")
     parser.add_argument("--verifierTimeout", "-vt", default="10", type=int, help="Timeout value")
     parser.add_argument("--prompt", "-p", default="base", help="Prompt to use")
+    parser.add_argument("--postcondition-only", "-pc", action="store_true", help="Only generate postconditions")
 
     args = parser.parse_args()
 
@@ -89,6 +90,7 @@ class Utils:
         parser.add_argument("--llm", "-l", default="gpt4", help="LLM to use")
         parser.add_argument("--verifierTimeout", "-vt", default="10", type=int, help="Timeout value")
         parser.add_argument("--prompt", "-p", default="base", help="Prompt to use")
+        parser.add_argument("--postcondition-only", "-pc", action="store_true", help="Only generate postconditions")
 
         args = parser.parse_args()
 
@@ -110,8 +112,9 @@ class Utils:
         llm = args.llm
         prompt_choice = args.prompt
         verifierTimeout = args.verifierTimeout
+        pc_only = args.postcondition_only
 
-        return inputfile, inputdir, outputdir, verifier, llm, prompt_choice, verifierTimeout
+        return inputfile, inputdir, outputdir, verifier, llm, prompt_choice, verifierTimeout, pc_only
 
     
     #Read the input file and return the lines
@@ -139,8 +142,11 @@ class Utils:
         
     #extracts the icontract specification from the text response (from the llm)
     @staticmethod
-    def get_icontract_specs(api_result):
-        pattern = r'@.*?(?=\ndef)'
+    def get_icontract_specs(api_result, pc_only):
+        if pc_only:
+            pattern = r'@icontract.ensure.*?(?=\ndef)'
+        else:
+            pattern = r'@.*?(?=\ndef)'
         matches = re.findall(pattern, api_result, re.DOTALL)
         if matches:
             return matches
