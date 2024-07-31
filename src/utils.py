@@ -33,10 +33,12 @@ class Utils:
     #get the file names from the directory (if they match the search string)
     @staticmethod
     def get_files(directory, search_string=""):
+        files = os.listdir(directory)
+        files.sort()  # Sort files alphabetically
         if search_string == "":
-            return [os.path.join(directory, f) for f in os.listdir(directory)]
+            return [os.path.join(directory, f) for f in files]
         else:
-            return [os.path.join(directory, f) for f in os.listdir(directory) if re.match(search_string, f)]
+            return [os.path.join(directory, f) for f in files if re.match(search_string, f)]
 
     #set default output directory based on input name
     @staticmethod
@@ -204,9 +206,9 @@ class Utils:
             ending = ".txt"    
             prompt_choice = ""
             
-        outputfilename = name + "_" + prompt_choice + "_" + type + ending
+        outputfile_name = name + "_" + prompt_choice + "_" + type + ending
             
-        outputfile = os.path.join(outputdir, outputfilename)
+        outputfile = os.path.join(outputdir, outputfile_name)
         with open(outputfile, "w") as f:
             f.write(content)
         return outputfile

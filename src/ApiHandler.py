@@ -22,15 +22,8 @@ class ApiHandler():
      #'or the description and use it to write a true expression for example "x=x".'
 
      systemMsg = "You are a helpful assistant, can work with code and give precise answers."
-    
-     base_prompt_c = 'In the following, I will provide a code snippet encased in ```c and ``` which may or may ' + \
-          'not be buggy. Try to use annotations, function names or any hints you can ' + \
-          'find in natural language or in the code to identify what the code is meant ' + \
-          'to do. Do NOT correct the code, but write formal specifications in ACSL ' + \
-          'annotations (that is //@ ... for single line annotations or /*@ ... */ for multi ' +\
-          'line annotations) that can be used to verify whether the program works as intended.' 
 
-     base_prompt_py = 'In the following, I will provide a code snippet encased in ```python and ``` which may or may ' + \
+     base_prompt = 'In the following, I will provide a code snippet encased in ```python and ``` which may or may ' + \
           'not be buggy. Try to use annotations, function names or any hints you can ' + \
           'find in natural language or in the code to identify what the code is meant ' + \
           'to do. Do NOT correct the code, but write formal specifications in icontract ' + \
@@ -40,27 +33,19 @@ class ApiHandler():
      simple_prompt_addition = 'Try to encapsulate the behaviour of the function without reimplementing the function. ' +\
           'The specification may be less complex, but should never be trivial. '
      
-     code2NL_prompt_c = 'In the following, a code snippet encased in ```c and ``` will be provided which may or may not be buggy. ' +\
-          'Please use comments, function or variable names and other hints in the code to determine what the code is supposed to do. ' +\
-          'Then disregard, whether it is buggy or not, and just give a brief informal explanation in natural language of what the code is supposed to be doing. ' +\
-          'It should contain all necessary information, including all input variables, but no code pieces.'
-     
-     code2NL_prompt_py = 'In the following, a code snippet encased in ```python and ``` will be provided which may or may not be buggy. ' +\
+     code2NL_prompt = 'In the following, a code snippet encased in ```python and ``` will be provided which may or may not be buggy. ' +\
           'Please use comments, function or variable names and other hints in the code to determine what the code is supposed to do. ' +\
           'Then disregard, whether it is buggy or not, and just give a brief informal explanation in natural language of what the code is supposed to be doing. ' +\
           'It should contain all necessary information, including all input variables, but no code pieces.'
 
-     NL2spec_prompt_c = 'In the following, I will provide a natural language description of a code snippet and its function definition without the implementation. ' +\
-          'Try to use this description to generate formal specifications in ACSL for the code snippet, that complies with this natural language specification. '
-
-     NL2spec_prompt_py = 'In the following, I will provide a natural language description of a code snippet and its function definition without the implementation. ' +\
+     NL2spec_prompt = 'In the following, I will provide a natural language description of a code snippet and its function definition without the implementation. ' +\
           'Try to use this description to generate formal specifications in icontract annotations (for example "@icontract.require(lambda ...)", "@icontract.ensure(lambda ...) ' + \
           'for the code snippet, that complies with this natural language specification. '
 
      # Depending on chosen prompt and llm, a request is generated
      # Normalizes llm choice to current model
      @classmethod
-     def handle_prompt(cls, lines, prompt_choice, llm, language):
+     def handle_prompt(cls, lines, prompt_choice, llm):
 
           if llm in ['GPT4', 'gpt-4', 'GPT-4', 'gpt4', 'gpt4o', 'GPT4o', 'gpt-4o', 'GPT-4o']:
                #llm = 'gpt-4o-2024-05-13'
@@ -70,9 +55,9 @@ class ApiHandler():
 
           response = None
           if prompt_choice in ['base' , 'simple']:
-               response = cls.gen_spec_request(lines, prompt_choice, llm, language)
+               response = cls.gen_spec_request(lines, prompt_choice, llm)
           elif prompt_choice in ['baseNL', 'simpleNL']:
-               response = cls.gen_nl_spec_request(lines, prompt_choice, llm, language)
+               response = cls.gen_nl_spec_request(lines, prompt_choice, llm)
 
           if response and response.choices and response.choices[0].message.content != "":
                print(prompt_choice + ', ' + llm + ': ' + response.choices[0].message.content)
@@ -85,27 +70,20 @@ class ApiHandler():
      #Takes the lines from the program and the chosen prompt and model to send 
      #a request to the model
      @classmethod
-     def gen_spec_request(cls, lines, prompt_choice, llm, language):
+     def gen_spec_request(cls, lines, prompt_choice, llm):
           for i in range(cls.max_retries):
                try:
-                    if language == 'c':
-                         base_prompt = cls.base_prompt_c
-                         NL2spec_prompt = cls.NL2spec_prompt_c
-                    elif language == 'python':
-                         base_prompt = cls.base_prompt_py
-                         NL2spec_prompt = cls.NL2spec_prompt_py
-
                     if prompt_choice == 'base':
-                         prompt = base_prompt + '\n\n' + cls.preciseness_request  + \
-                              f'\n\n```{language} \n' + '\n'.join(lines) + '\n```'
+                         prompt = cls.base_prompt + '\n\n' + cls.preciseness_request  + \
+                              '\n\n```python \n' + '\n'.join(lines) + '\n```'
                     elif prompt_choice == 'simple':
-                         prompt = base_prompt + '\n' + cls.simple_prompt_addition + '\n\n' + cls.preciseness_request + \
-                              f'\n\n```{language} \n' + '\n'.join(lines) + '\n```'
+                         prompt = cls.base_prompt + '\n' + cls.simple_prompt_addition + '\n\n' + cls.preciseness_request + \
+                              '\n\n```python \n' + '\n'.join(lines) + '\n```'
                     elif prompt_choice == 'baseNL':
-                         prompt = NL2spec_prompt + '\n\n' + cls.preciseness_request + \
+                         prompt = cls.NL2spec_prompt + '\n\n' + cls.preciseness_request + \
                               '\n\n``` \n' + lines + '\n```'
                     elif prompt_choice == 'simpleNL':
-                         prompt = NL2spec_prompt + '\n' + cls.simple_prompt_addition + '\n\n' + cls.preciseness_request + \
+                         prompt = cls.NL2spec_prompt + '\n' + cls.simple_prompt_addition + '\n\n' + cls.preciseness_request + \
                               '\n\n``` \n' + lines + '\n```'
                     response = cls.client.chat.completions.create(
                          model=llm,
@@ -136,35 +114,30 @@ class ApiHandler():
 
 
      @classmethod
-     def gen_nl_spec_request(cls, lines, prompt_choice, llm, language):
-          nl_response = cls.gen_nl_explanation(lines, llm, language)
+     def gen_nl_spec_request(cls, lines, prompt_choice, llm):
+          nl_response = cls.gen_nl_explanation(lines, llm)
           if nl_response.choices and nl_response.choices[0].message.content != "":
                print(prompt_choice + ', ' + llm + ': ' + nl_response.choices[0].message.content)
                nl_explanation = nl_response.choices[0].message.content
           else:
-               print("No nl explanationfound")
+               print("No NL explanation found")
                return ""
 
           function_def = cls.util.find_function_def(lines)
           nl_explanation = nl_explanation + '\n\n' + function_def
           
-          gen_spec = cls.gen_spec_request(nl_explanation, prompt_choice, llm, language)
+          gen_spec = cls.gen_spec_request(nl_explanation, prompt_choice, llm)
 
           return gen_spec
 
                
 
      @classmethod
-     def gen_nl_explanation(cls, lines, llm, language):
+     def gen_nl_explanation(cls, lines, llm):
           for i in range(cls.max_retries):
                try:
-                    if language == 'c':
-                         code2NL_prompt = cls.code2NL_prompt_c
-                    elif language == 'python':
-                         code2NL_prompt = cls.code2NL_prompt_py
-
-                    prompt = code2NL_prompt + '\n\n' + cls.preciseness_request + \
-                         f'\n\n```{language} \n' + '\n'.join(lines) + '\n```'
+                    prompt = cls.code2NL_prompt + '\n\n' + cls.preciseness_request + \
+                         '\n\n```python \n' + '\n'.join(lines) + '\n```'
                     response = cls.client.chat.completions.create(
                          model=llm,
                          messages=[
